@@ -50,7 +50,10 @@ def get_mam_requests():
         req_books += r.json()['data']
         total_items = r.json()['found']
         start_idx += 100
-        keepGoing = total_items > start_idx
+        keepGoing = total_items > start_idx and not \
+            {x['id'] for x in req_books}.intersection(blacklist)
+
+    # saving the session lets you reuse the cookies returned by MAM which means you won't have to manually update the mam_id value as often
     with open(sess_filepath, 'wb') as f:
         pickle.dump(sess, f)
 
@@ -104,8 +107,12 @@ calibre_search_url = f'http://{CALIBRE_IP}:{CALIBRE_PORT}/interface-data/books-i
 
 if __name__ == '__main__':
     req_books = get_mam_requests()
+    print(f'got {len(req_books)} from MAM requests api')
     req_books_reduced = [x for x in req_books if
-                         x['cat_name'].startswith('Ebooks') and x['filled'] == 0 and x['torsatch'] == 0]
+                         x['cat_name'].startswith('Ebooks')
+                         and x['filled'] == 0
+                         and x['torsatch'] == 0
+                         and x['id'] not in blacklist]
 
     for book in req_books_reduced:
         book['url'] = 'https://www.myanonamouse.net/tor/viewRequest.php/' + str(book['id'])[:-5] + '.' + str(book['id'])[-5:]
@@ -120,6 +127,6 @@ if __name__ == '__main__':
             if len(search_results) > 5:
                 print(f'showing first 5 results')
             for x in list(search_results.keys())[:5]:
-                print(get_calibre_book_details_url(x))
+                print(get_calibre_book_details_url(x), search_results[x]['title'])
             print()
 
